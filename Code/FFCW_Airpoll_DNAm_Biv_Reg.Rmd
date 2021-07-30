@@ -1,0 +1,1202 @@
+---
+title: "Fragile Families DNAm Air Pollution"
+subtitle: "Bivariate and Multivariate Analyses"
+author: "Kelly Bakulski"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: sandstone
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+  
+## Goal: Producing reproducible descriptive plots, bivariate descriptive statistics tables, multivariable regression
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r install, eval=FALSE, message=FALSE}
+install.packages("compareGroups")
+install.packages("DiagrammeR")
+install.packages("DiagrammeRsvg")
+install.packages("rsvg")
+install.packages("ggpubr")
+install.packages("hrbrthemes")
+```
+
+
+```{r load}
+library(here)
+library(compareGroups)
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+library(ggplot2)
+library(ggpubr)
+library(hrbrthemes)
+library(nlme)
+hrbrthemes::import_roboto_condensed() 
+
+date <- format(Sys.Date(), "%Y%m%d") 
+
+load(file=here("Data", paste0("FFCW_AirPoll_DNAm_", date, ".rda")))
+load(file=here("Data", paste0("FFCW_AirPoll_DNAm_Included_", date, ".rda")))
+```
+
+```{r bivariate analysis}
+summary(include$birth.pm10)
+summary(include$peg.pm10.centstd)
+cor(include$birth.pm10, include$peg.pm10.centstd, use="pairwise.complete.obs")
+cor.test(include$birth.pm10, include$peg.pm10.centstd, use="pairwise.complete.obs")
+cor.test(include$birth.pm10[include$childteen=="C"], include$peg.pm10.cent[include$childteen=="C"])
+cor.test(include$birth.pm10[include$childteen=="T"], include$peg.pm10.cent[include$childteen=="T"])
+
+summary(include$birth.pm25)
+summary(include$peg.pm25.centstd)
+cor.test(include$birth.pm25, include$peg.pm25.centstd)
+```
+
+
+```{r correlation_plots}
+p25 <- ggplot(include, aes(x=birth.pm25, y=peg.pm25.centstd)) +
+  xlab("Prenatal Particulate Matter 2.5 uM Exposure (ug/m3/day)") +
+  ylab("Standardized Saliva Poly DNA Methylation Score
+      for Particulate Matter 2.5 uM Exposure") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 35) +
+  theme_bw() 
+p25
+
+dim(include[include$childteen == "C",])
+
+p25.a9 <- ggplot(include[include$childteen == "C",], aes(x=birth.pm25, y=peg.pm25.centstd)) +
+  xlab("Prenatal 2.5 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Standardized Saliva Poly DNA Methylation Score
+      for 2.5 uM Particulate Matter Exposure") +
+  ggtitle("Age 9") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 35) +
+  theme_bw() 
+p25.a9
+
+p25.a15 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm25, y=peg.pm25.centstd)) +
+  xlab("Prenatal 2.5 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Standardized Saliva Poly DNA Methylation Score
+      for 2.5 uM Particulate Matter Exposure") +
+  ggtitle("Age 15") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 35) +
+  theme_bw() 
+p25.a15
+
+p10 <- ggplot(include, aes(x=birth.pm10, y=peg.pm10.centstd)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Standardized Saliva Poly DNA Methylation Score
+      for 10 uM Particulate Matter Exposure") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+    stat_cor(method= "pearson", label.x = 7) +
+  theme_bw()
+
+p10
+
+p10.a9 <- ggplot(include[include$childteen == "C",], aes(x=birth.pm10, y=peg.pm10.centstd)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Standardized Saliva Poly DNA Methylation Score
+      for 10 uM Particulate Matter Exposure") +
+  ggtitle("Age 9") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a9
+
+p10.a15 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=peg.pm10.centstd)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Standardized Saliva Poly DNA Methylation Score
+      for 10 uM Particulate Matter Exposure") +
+  ggtitle("Age 15") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15
+
+ggarrange(p25, p10, ncol=2)
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_PEGStd_Bivariate_Plots_", date, ".pdf")))
+  p25
+  p25.a9
+  p25.a15
+  p10
+  p10.a9
+  p10.a15
+dev.off()
+```
+
+```{r correlation_plots_single_site}
+
+p10.a15.1 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=cg00905156.percent)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Percent DNA Methylation at cg00905156") +
+  ggtitle("Age 15 cg00905156") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15.1
+
+p10.a15.2 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=cg06849931.percent)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Percent DNA Methylation at cg06849931") +
+  ggtitle("Age 15 cg06849931") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15.2
+
+p10.a15.3 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=cg15082635.percent)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Percent DNA Methylation at cg15082635") +
+  ggtitle("Age 15 cg15082635") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15.3
+
+p10.a15.4 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=cg18640183.percent)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Percent DNA Methylation at cg18640183") +
+  ggtitle("Age 15 cg18640183") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15.4
+
+p10.a15.5 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=cg20340716.percent)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Percent DNA Methylation at cg20340716") +
+  ggtitle("Age 15 cg20340716") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15.5
+
+p10.a15.6 <- ggplot(include[include$childteen == "T",], aes(x=birth.pm10, y=cg24127244.percent)) +
+  xlab("Prenatal 10 uM Particulate Matter Exposure (ug/m3/day)") +
+  ylab("Percent DNA Methylation at cg24127244") +
+  ggtitle("Age 15 cg24127244") +
+  geom_point() +
+  geom_smooth(method=lm , color="dodgerblue", fill="#69b3a2", se=TRUE) +
+  stat_cor(method= "pearson", label.x = 7) +
+  theme_bw() 
+p10.a15.6
+
+#ggarrange(p25, p10, ncol=2)
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_SingleSitePM10_Bivariate_Plots_", date, ".pdf")))
+  p10.a15.1
+  p10.a15.2
+  p10.a15.3
+  p10.a15.4
+  p10.a15.5
+  p10.a15.6
+dev.off()
+```
+
+```{r regression_analysis_std_peg_outcome, eval=F}
+mod.crude<-lm(peg.pm10.centstd ~ birth.pm10, data=include)
+summary(mod.crude)
+
+mod<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + ethrace.factor + cm1inpov + m1b2 + epithelial, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + ethrace.factor + cm1inpov + m1b2 + epithelial, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + ethrace.factor + cm1inpov + m1b2 + epithelial, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+mod.crude<-lm(peg.pm25.centstd ~ birth.pm25, data=include)
+summary(mod.crude)
+
+mod<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + ethrace.factor + cm1inpov + m1b2 + epithelial, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + ethrace.factor + cm1inpov + m1b2 + epithelial, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + ethrace.factor + cm1inpov + m1b2 + epithelial, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+```
+
+
+```{r regression_analysis_std_dnam_outcome}
+output<-data.frame(matrix(nrow=6, ncol= 15))
+colnames(output) <- c("Exposure", "Age", "N", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep("PM2.5", 3), rep("PM10", 3))
+output$Age <- c("All", "9", "15")
+
+IQR(include$birth.pm25, na.rm=T)
+IQR(include$birth.pm10, na.rm=T)
+
+### Raw
+
+mod<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[1:3] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[4:6] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered
+
+mod<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered & Scaled
+
+mod<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centscalestd ~  birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Output
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_Std_PEG_Regression_Primary_", date, ".csv")) )
+
+```
+
+
+```{r std_sensitivity_analysis_postnatal_age1}
+output<-data.frame(matrix(nrow=6, ncol= 15))
+colnames(output) <- c("Exposure", "Age", "N", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep("PM2.5", 3), rep("PM10", 3))
+output$Age <- c("All", "9", "15")
+
+IQR(include$birth.pm25, na.rm=T)
+IQR(include$birth.pm10, na.rm=T)
+
+### Raw
+
+mod<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[1:3] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude,  data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[4:6] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered
+
+mod<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered & Scaled
+
+mod<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Output
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_Std_PEG_Regression_Sens_Age1_", date, ".csv")) )
+
+```
+
+
+```{r std_sensitivity_analysis_postnatal_age3}
+output<-data.frame(matrix(nrow=6, ncol= 15))
+colnames(output) <- c("Exposure", "Age", "N", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep("PM2.5", 3), rep("PM10", 3))
+output$Age <- c("All", "9", "15")
+
+IQR(include$birth.pm25, na.rm=T)
+IQR(include$birth.pm10, na.rm=T)
+
+### Raw
+
+mod<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[1:3] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude,  data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[4:6] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered
+
+mod<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered & Scaled
+
+mod<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Output
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_Std_PEG_Regression_Sens_Age3_", date, ".csv")) )
+
+```
+
+```{r std_sensitivity_analysis_coexposure_adjust}
+output<-data.frame(matrix(nrow=6, ncol= 15))
+colnames(output) <- c("Exposure", "Age", "N", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep("PM2.5", 3), rep("PM10", 3))
+output$Age <- c("All", "9", "15")
+
+IQR(include$birth.pm25, na.rm=T)
+IQR(include$birth.pm10, na.rm=T)
+
+### Raw
+
+mod<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[1:3] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude,  data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[4:6] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered
+
+mod<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered & Scaled
+
+mod<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Output
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_Std_PEG_Regression_Sens_Co_Expo_", date, ".csv")) )
+
+```
+
+
+```{r std_sensitivity_analyses_no2}
+output<-data.frame(matrix(nrow=6, ncol= 15))
+colnames(output) <- c("Exposure", "Age", "N", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep("PM2.5", 3), rep("PM10", 3))
+output$Age <- c("All", "9", "15")
+
+IQR(include$birth.pm25, na.rm=T)
+IQR(include$birth.pm10, na.rm=T)
+
+### Raw
+
+mod<-lm(peg.no2.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.no2.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.no2.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$N[1:3] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRlcl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.no2.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.no2.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.no2.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[4:6] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered
+
+mod<-lm(peg.no2.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.no2.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.no2.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.no2.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.no2.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.no2.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.c[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.c[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Centered & Scaled
+
+mod<-lm(peg.no2.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+summary(mod)$coef[2,4]
+
+mod.a9<-lm(peg.no2.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.no2.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[1:3] <- IQR(include$birth.pm25, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(peg.no2.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include)
+summary(mod)
+
+mod.a9<-lm(peg.no2.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="C",])
+summary(mod.a9)
+
+mod.a15<-lm(peg.no2.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$IQRcoef.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.cs[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.cs[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Output
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_Std_PEG_Regression_NO2_Sens_", date, ".csv")) )
+```
+
+```{r singlesite_sensitivity_analysis_pm10_age15}
+output<-data.frame(matrix(nrow=6, ncol= 15))
+colnames(output) <- c("Exposure", "cg", "N", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep("PM10", 6))
+output$cg <- c("cg00905156", "cg06849931", "cg15082635", "cg18640183", "cg20340716", "cg24127244")
+
+IQR(include$birth.pm10, na.rm=T)
+
+### Raw
+
+mod<-lm(cg00905156.percent ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2.factor + Epithelial.cells + Leukocytes, na.option=na.exclude, data=include[include$childteen=="T",])
+summary(mod)
+
+mod.a9<-lm(cg06849931.percent ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2.factor + Epithelial.cells + Leukocytes, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a9)
+
+mod.a15<-lm(cg15082635.percent ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2.factor + Epithelial.cells + Leukocytes, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[1:3] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[1:3] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[1:3] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[1:3] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[1:3] <-c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+mod<-lm(cg18640183.percent ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2.factor + Epithelial.cells + Leukocytes, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod)
+
+mod.a9<-lm(cg20340716.percent ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2.factor + Epithelial.cells + Leukocytes, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a9)
+
+mod.a15<-lm(cg24127244.percent ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2.factor + Epithelial.cells + Leukocytes, na.option=na.exclude,  data=include[include$childteen=="T",])
+summary(mod.a15)
+
+output$N[4:6] <- c(nrow(model.frame(mod)), nrow(model.frame(mod.a9)), nrow(model.frame(mod.a15)))
+
+output$IQRcoef.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(mod$coefficients[2], mod.a9$coefficients[2], mod.a15$coefficients[2])
+
+output$IQRlcl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,1], confint(mod.a9)[2,1], confint(mod.a15)[2,1])
+
+output$IQRucl.r[4:6] <- IQR(include$birth.pm10, na.rm=T) * c(confint(mod)[2,2], confint(mod.a9)[2,2], confint(mod.a15)[2,2])
+
+output$pval.r[4:6] <- c(summary(mod)$coef[2,4], summary(mod.a9)$coef[2,4], summary(mod.a15)$coef[2,4])
+
+### Output
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_SingleSite_Regression_Sens_Age15_PM10_", date, ".csv")) )
+
+```
+
+```{r mixed_effects}
+head(include) # Use idnum as my random effect. Random intercept only.
+
+output<-data.frame(matrix(nrow=10, ncol= 16))
+colnames(output) <- c("Exposure", "Age", "Model", "DF", "IQRcoef.r", "IQRlcl.r", "IQRucl.r", "pval.r",  "IQRcoef.c", "IQRlcl.c", "IQRucl.c", "pval.c",  "IQRcoef.cs", "IQRlcl.cs", "IQRucl.cs", "pval.cs")
+output$Exposure <- c(rep(c("PM2.5", "PM10"), 5))
+output$Age <- c(rep("All",10 ))
+output$Model <- c(rep("Primary", 2), rep("Age1", 2), rep("Age3", 2), rep("Coexposure", 2), rep("NOx", 2))
+
+IQR(include$birth.pm25, na.rm=T)
+IQR(include$birth.pm10, na.rm=T)
+
+# Primary model
+mod.pm25<-lme(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+summary(mod)$tTable[2,1] # Beta coefficient "Value"
+summary(mod)$tTable[2,2] # Standard error
+summary(mod)$tTable[2,3] # DF
+summary(mod)$tTable[2,5] # p-value
+
+mod.pm10<-lme(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$DF[1:2] <-c(summary(mod.pm25)$tTable[2,3], summary(mod.pm10)$tTable[2,3])
+
+# str(intervals(mod))
+# intervals(mod)$fixed[2,1] #lower
+# intervals(mod)$fixed[2,3] #upper
+
+output$IQRcoef.r[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.r[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.r[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.r[1:2] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Age 1 sensitivity
+mod.pm25<-lme(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$DF[3:4] <-c(summary(mod.pm25)$tTable[2,3], summary(mod.pm10)$tTable[2,3])
+
+output$IQRcoef.r[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.r[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.r[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.r[3:4] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Age 3 sensitivity
+mod.pm25<-lme(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$DF[5:6] <-c(summary(mod.pm25)$tTable[2,3], summary(mod.pm10)$tTable[2,3])
+
+output$IQRcoef.r[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.r[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.r[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.r[5:6] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Co-exposure sensitivity
+
+mod.pm25<-lme(peg.pm25.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$DF[7:8] <-c(summary(mod.pm25)$tTable[2,3], summary(mod.pm10)$tTable[2,3])
+
+output$IQRcoef.r[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.r[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.r[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.r[7:8] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# NOX sensitivity
+
+mod.pm25<-lme(peg.no2.rawstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.no2.rawstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$DF[9:10] <-c(summary(mod.pm25)$tTable[2,3], summary(mod.pm10)$tTable[2,3])
+
+output$IQRcoef.r[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.r[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.r[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.r[9:10] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+############################
+#### Center peg.pm25.centstd
+
+# Primary model
+mod.pm25<-lme(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.c[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.c[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.c[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.c[1:2] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Age 1 sensitivity
+mod.pm25<-lme(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+
+output$IQRcoef.c[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.c[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.c[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.c[3:4] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Age 3 sensitivity
+mod.pm25<-lme(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.c[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.c[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.c[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.c[5:6] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Co-exposure sensitivity
+
+mod.pm25<-lme(peg.pm25.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.c[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.c[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.c[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.c[7:8] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# NOX sensitivity
+
+mod.pm25<-lme(peg.no2.centstd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.no2.centstd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.c[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.c[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.c[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.c[9:10] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+#### Center Scaled peg.pm10.centscalestd 
+
+# Primary model
+mod.pm25<-lme(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.cs[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.cs[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.cs[1:2] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.cs[1:2] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Age 1 sensitivity
+mod.pm25<-lme(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age1.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+
+output$IQRcoef.cs[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.cs[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.cs[3:4] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.cs[3:4] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Age 3 sensitivity
+mod.pm25<-lme(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + age3.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.cs[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.cs[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.cs[5:6] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.cs[5:6] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# Co-exposure sensitivity
+
+mod.pm25<-lme(peg.pm25.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm10, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.pm10.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes + birth.pm25, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.cs[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.cs[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.cs[7:8] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.cs[7:8] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+# NOX sensitivity
+
+mod.pm25<-lme(peg.no2.centscalestd ~ birth.pm25 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+mod.pm10<-lme(peg.no2.centscalestd ~ birth.pm10 + age.dnam + sex + matrace.factor + cm1inpov + m1b2 + Epithelial.cells + Leukocytes, random = ~ 1 | idnum, data=include, na.action=na.exclude)
+
+output$IQRcoef.cs[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(summary(mod.pm25)$tTable[2,1], IQR(include$birth.pm10, na.rm=T) * summary(mod.pm10)$tTable[2,1]))
+
+output$IQRlcl.cs[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,1], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,1]))
+
+output$IQRucl.cs[9:10] <- c(IQR(include$birth.pm25, na.rm=T) * c(intervals(mod.pm25)$fixed[2,3], IQR(include$birth.pm10, na.rm=T) * intervals(mod.pm10)$fixed[2,3]))
+
+output$pval.cs[9:10] <-c(summary(mod.pm25)$tTable[2,5], summary(mod.pm10)$tTable[2,5])
+
+
+
+output
+
+write.csv(output, file=here("Output",paste0("FFCW_AirPoll_MixedEffects_Regression_Primary_", date, ".csv")) )
+```
+

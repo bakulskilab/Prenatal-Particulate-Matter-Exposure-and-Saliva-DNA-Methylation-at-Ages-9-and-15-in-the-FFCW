@@ -1,0 +1,486 @@
+---
+title: "Fragile Families DNAm Air Pollution"
+subtitle: "Inclusion/Exclusion, Univariate Analyses"
+author: "Kelly Bakulski"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: sandstone
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+  
+## Goal: Producing reproducible inclusion/exclusion descriptive statistics tables, flowcharts
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install, eval=FALSE, message=FALSE}
+install.packages("compareGroups")
+install.packages("DiagrammeR")
+install.packages("DiagrammeRsvg")
+install.packages("rsvg")
+install.packages("pandoc")
+```
+
+
+```{r load, message=F}
+library(here)
+library(compareGroups)
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+library(corrplot)
+# library(pandoc)
+
+date <- format(Sys.Date(), "%Y%m%d") 
+
+load(file=here("Data", paste0("FFCW_AirPoll_DNAm_", date, ".rda")))
+
+```
+
+
+```{r include/exclude_overall}
+table(ffcw$ethrace, useNA="always")
+summary(ffcw$cm1inpov)
+summary(ffcw$age.dnam)
+summary(ffcw$sex)
+summary(ffcw$m1)
+table(ffcw$matrace.factor, useNA="always")
+table(ffcw$m1b2.factor, useNA="always")
+
+
+ffcw$include <- ifelse(ffcw$cut=="" & !is.na(ffcw$age.dnam) & !is.na(ffcw$sex) & !is.na(ffcw$m1city) & !is.na(ffcw$m1b2.factor)  & !is.na(ffcw$cm1inpov) & !is.na(ffcw$ethrace) & (!is.na(ffcw$peg.pm25.raw) | !is.na(ffcw$peg.pm10.raw) | !is.na(ffcw$peg.no2.raw)) & (!is.na(ffcw$birth.pm10) | !is.na(ffcw$birth.pm25)), 1, 0)
+
+
+table(ffcw$include) #1546
+include <- ffcw[ffcw$include ==1, ]
+dim(include)
+
+t.test(ffcw$age.dnam ~ffcw$childteen)
+t.test(include$age.dnam ~include$childteen)
+```
+
+```{r include_stepwise}
+ffcw$include.step1 <- ifelse(ffcw$cut=="" , 1, 0)
+table(ffcw$include.step1) #66 obs cut
+length(unique(ffcw$idnum[ffcw$include.step1==1])) #884 indiv
+
+# Maternal/pregnancy characteristics
+ffcw$include.step2 <- ifelse(ffcw$include.step1==1  & !is.na(ffcw$m1city) & !is.na(ffcw$cm1inpov) & !is.na(ffcw$m1b2.factor) & !is.na(ffcw$matrace.factor)  , 1, 0)
+table(ffcw$include.step2) #0 obs missing
+length(unique(ffcw$idnum[ffcw$include.step2==1])) #884 indiv
+
+# Child characteristics
+ffcw$include.step3 <- ifelse(ffcw$include.step2==1 & !is.na(ffcw$sex) & !is.na(ffcw$age.dnam) , 1, 0)
+table(ffcw$include.step3) #0 obs missing sex/ethrace, 30 obs age
+length(unique(ffcw$idnum[ffcw$include.step3==1]))
+
+ffcw$include.step4 <- ifelse(ffcw$include.step3==1 & (!is.na(ffcw$peg.pm25.raw) | !is.na(ffcw$peg.pm10.raw) | !is.na(ffcw$peg.no2.raw) ), 1, 0)
+table(ffcw$include.step4) #0 people missing
+
+ffcw$include.step5 <- ifelse(ffcw$include.step4==1 & (!is.na(ffcw$birth.pm10) | !is.na(ffcw$birth.pm25)), 1, 0)
+table(ffcw$include.step5) #169 people missing
+```
+
+
+### Make flow chart for inclusion/exclusion
+```{r primary_flowchart}
+# graph: this sets the overall layout, themes of the plot
+# node: the boxes in the flowchart
+# edges: the lines used to connect each of the boxes
+
+## Need 2 columns (1, 2) with 6 rows (A-F)
+# Labels for column 1
+a1 <- paste0("FFCW participants
+n indiv=", length(unique(ffcw$idnum)),
+", n obs=", length(ffcw$include.step1))
+
+b1 <- paste0("DNA methylation
+measures pass quality checks
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step1 == 1])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step1 == 1]))
+
+
+c1 <- paste0("Maternal pregnancy
+characteristics available
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step2 == 1])),
+", n obs=", length(ffcw$include.step2[ffcw$include.step2 == 1]))
+
+
+d1 <- paste0("Child characteristics
+available
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step3 == 1])),
+", n obs=", length(ffcw$include.step3[ffcw$include.step3 == 1]))
+
+e1 <- paste0("Exposure polymethylation
+scores available
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step4 == 1])),
+", n obs=", length(ffcw$include.step4[ffcw$include.step4 == 1]))
+
+f1 <- paste0("Prenatal exposure
+levels available
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step5 == 1])),
+", n obs=", length(ffcw$include.step5[ffcw$include.step5 == 1]))
+
+# Labels for column 2
+b2 <- paste0("DNA methylation measures
+fail quality checks:
+Fail detection p-value
+n indiv=", length(unique(ffcw$idnum[ffcw$cut == "detp" ])),
+", n obs=", length(ffcw$include.step1[ffcw$cut == "detp"]),
+"\nSex mismatch
+n indiv=", length(unique(ffcw$idnum[ffcw$cut == "sexmismatch" ])),
+", n obs=", length(ffcw$include.step1[ffcw$cut == "sexmismatch"]),
+"\nSex chromosome outlier
+n indiv=", length(unique(ffcw$idnum[ffcw$cut == "sexoutlier" ])),
+", n obs=", length(ffcw$include.step1[ffcw$cut == "sexoutlier"]))
+
+c2 <- paste0("Missing maternal
+pregnancy characteristics:
+Missing city of birth
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step1 == 1 & is.na(ffcw$m1city)])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step1 == 1 & is.na(ffcw$m1city)]),
+"\nMissing maternal income/poverty
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step1 == 1 & is.na(ffcw$cm1inpov)])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step1 == 1 & is.na(ffcw$cm1inpov)]),
+"\nMissing maternal marital status
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step1 == 1 & is.na(ffcw$m1b2.factor)])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step1 == 1 & is.na(ffcw$m1b2.factor)]),
+"\nMissing maternal race/ethnicity
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step1 == 1 & is.na(ffcw$matrace.factor)])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step1 == 1 & is.na(ffcw$matrace.factor)]))
+
+d2 <- paste0("Missing child characteristics:
+Missing sex of child
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step2 == 1 & is.na(ffcw$sex)])),
+", n obs=", length(ffcw$include.step2[ffcw$include.step2 == 1 & is.na(ffcw$sex)]), 
+"\nMissing age of child
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step2 == 1 & is.na(ffcw$age.dnam)])),
+", n obs=", length(ffcw$include.step2[ffcw$include.step2 == 1 & is.na(ffcw$age.dnam)]) 
+)
+
+length(unique(ffcw$idnum[ffcw$include.step2 == 1]))
+length(unique(ffcw$idnum[ffcw$include.step2 == 1 & !is.na(ffcw$age.dnam)]))
+length(unique(ffcw$idnum[ffcw$include.step2 == 1 & is.na(ffcw$age.dnam)]))
+
+e2 <- paste0("Missing exposure
+polymethylation score
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step4 == 0 & ffcw$include.step3 == 1])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step4 == 0 & ffcw$include.step3 == 1]))
+
+f2 <- paste0("Missing prenatal
+exposure levels
+n indiv=", length(unique(ffcw$idnum[ffcw$include.step5 == 0 & ffcw$include.step4 == 1])),
+", n obs=", length(ffcw$include.step1[ffcw$include.step5 == 0 & ffcw$include.step4 == 1]))
+
+# Create a node dataframe
+ndf <- create_node_df(
+  n = 11,
+  label = c(
+    a1, b1, c1, d1, e1, f1, # Column 1
+     b2, c2, d2, e2, f2
+  ), # Column 2
+  style = c(
+    rep("solid", 6), # Column 1
+    rep("dotted", 5)
+  ), # Column 2
+  shape = "box",
+  fontname = "Arial",
+  penwidth = 3,
+  fixedsize = F,
+  color = c(rep("black", 6), rep("silver", 5))
+)
+
+
+# Create an edge dataframe
+edf <- create_edge_df(
+  from = c(
+    1, 2, 3, 4, 5, # Column 1
+    1, 2, 3, 4, 5 # Column 2
+  ),
+  to = c(
+    2, 3, 4, 5, 6, # Column 1
+    7, 8, 9, 10, 11 # Column 2
+  ),
+  arrowhead = "normal",
+  style = c(rep("solid", 6), rep("dotted", 5)),
+  color = c(
+    rep("black", 5), # Column 1
+    rep("silver", 5)
+  ) # Column 2
+)
+
+g <- create_graph(ndf,
+  edf,
+  attr_theme = NULL, directed = T
+)
+render_graph(g)
+
+export_graph(g, file_name = here("Output",paste0("FFCW_AirPoll_Flowchart_Inclusion_Exclusion_", date, ".pdf")), file_type = "PDF")
+```
+
+```{r prep_variables_comparegroups}
+ffcw$include.factor<-factor(ffcw$include, levels=c(0,1), labels=c("exclude", "include"))
+table(ffcw$include.factor)
+
+table(ffcw$birth_pm25_na)
+
+summary(ffcw$cg00905156)
+summary(ffcw$cg06849931)
+summary(ffcw$cg15082635)
+summary(ffcw$cg18640183)
+summary(ffcw$cg20340716)
+summary(ffcw$cg24127244)
+
+```
+
+
+```{r include_exclude_table}
+
+
+include.exclude.pval <- descrTable(formula =  include.factor ~   childteen + childteen.na + sex  + sex.na  + childethrace.factor + ethrace.factor.na + age.dnam + age.na +  cm1inpov  + matrace.factor + race.factor.na + cm1inpov.na + m1b2.factor  + m1b2.na + m1city.factor +  m1city.na   +  birth.pm25 + birth.pm25.na + birth.pm10 + birth.pm10.na  +  age1.pm25 + age1.pm25.na + age1.pm10 + age1.pm10.na +  age3.pm25 + age3.pm25.na + age3.pm10 + age3.pm10.na + peg.pm25.rawstd + peg.pm25.raw.na + peg.pm10.rawstd  + peg.pm10.raw.na + peg.no2.rawstd + peg.no2.raw.na + cg00905156.percent + cg06849931.percent + cg15082635.percent + cg18640183.percent + cg20340716.percent + cg24127244.percent + immune.percent + immune.na + epithelial.percent + epithelial.na, data = ffcw, na.action = na.pass, show.all = T, show.n = T, digits.p = 3, max.xlev=25)
+print(include.exclude.pval)
+
+export2word(include.exclude.pval, file = here("Output", paste0("FFCW_AirPoll_Inclusion_Exclusion_Table_", date, ".docx")))
+export2html(include.exclude.pval, file = here("Output", paste0("FFCW_AirPoll_Inclusion_Exclusion_Table_", date, ".html")))
+```
+
+```{r prep_univariate}
+
+table(include$childteen)
+summary(include$childteen)
+summary(include$age.dnam)
+table(include$race)
+
+summary(include$cm1inpov)
+hist(include$cm1inpov)
+table(include$childsex)
+
+# Report the duplicate IDs across time points
+table(duplicated(include$idnum))
+
+# Report the range of exposure levels at birth
+summary(include$birth.pm25) 
+summary(include$birth.pm10)
+
+# Report the correlation between exposure levels PM25
+cor.test(include$birth.pm25[include$childteen=="C"], include$age1.pm25[include$childteen=="C"])
+
+cor.test(include$birth.pm25[include$childteen=="C"], include$age3.pm25[include$childteen=="C"])
+
+# Report the correlation between exposure levels PM10
+cor.test(include$birth.pm10[include$childteen=="C"], include$age1.pm10[include$childteen=="C"])
+
+cor.test(include$birth.pm10[include$childteen=="C"], include$age3.pm10[include$childteen=="C"])
+
+cor.test(include$birth.pm25[include$childteen=="C"], include$birth.pm10[include$childteen=="C"])
+```
+
+
+## Compare Groups to Produce Univariate Tables
+```{r univariate_table}
+univar.desc.pval <- descrTable(formula =  childteen ~  childteen + childteen.na + sex  + sex.na  + childethrace.factor + ethrace.factor.na + age.dnam + age.na +  cm1inpov  + cm1inpov.na + m1b2.factor  + m1b2.na + matrace.factor + race.factor.na + m1city.factor +  m1city.na   +  birth.pm25 + birth.pm25.na + birth.pm10 + birth.pm10.na  +  age1.pm25 + age1.pm25.na + age1.pm10 + age1.pm10.na +  age3.pm25 + age3.pm25.na + age3.pm10 + age3.pm10.na + peg.pm25.rawstd + peg.pm25.raw.na + peg.pm25.centstd + peg.pm25.centscalestd + peg.pm10.rawstd  + peg.pm10.raw.na + peg.pm10.centstd + peg.pm10.centscalestd + peg.no2.rawstd + peg.no2.raw.na + peg.no2.centstd + peg.no2.centscalestd + cg00905156.percent + cg06849931.percent + cg15082635.percent + cg18640183.percent + cg20340716.percent + cg24127244.percent + immune.percent + immune.na + epithelial.percent + epithelial.na, data = include, na.action = na.pass, show.all = T, show.n = T, digits.p = 3, max.xlev = 25)
+print(univar.desc.pval)
+export2word(univar.desc.pval, file = here("Output",paste0("FFCW_AirPoll_Univariate_Table_", date, ".docx")))
+export2html(univar.desc.pval, file = here("Output",paste0("FFCW_AirPoll_Univariate_Table_", date, ".html")))
+```
+
+
+```{r histograms_pollution}
+
+length(include$birth.pm25[include$childteen=="T" & include$birth.pm25>35])/length(include$birth.pm25[include$childteen=="T"])*100
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_Pollution_Histograms_", date, ".pdf")))
+
+hist(include$birth.pm25[include$childteen=="T"], breaks = 60, col = "dodgerblue", border = "blue", freq = F, ylab="Proportion of the sample", xlab="Particulate Matter 2.5 uM at Birth", main=NULL, las=1)
+lines(density(include$birth.pm25[include$childteen=="T"]), lwd = 3)
+abline(v=35, lty=2, col="firebrick", lwd=4)
+
+hist(include$birth.pm10[include$childteen=="T"], breaks = 60, col = "dodgerblue", border = "blue", freq = F, ylab="Proportion of the sample", xlab="Particulate Matter 10 uM at Birth", main=NULL, las=1)
+lines(density(include$birth.pm10[include$childteen=="T"], na.rm=T), lwd = 3)
+abline(v=150, lty=2, col="firebrick", lwd=4)
+
+dev.off()
+```
+
+```{r histograms_pegs}
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_PEG_Histograms_", date, ".pdf")))
+
+hist(include$peg.pm25.raw[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (raw) Particulate Matter 2.5 uM", main=NULL, las=1)
+
+hist(include$peg.pm25.cent[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (cent) Particulate Matter 2.5 uM", main=NULL, las=1)
+
+hist(include$peg.pm25.centscale[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (centscale) Particulate Matter 2.5 uM", main=NULL, las=1)
+
+hist(include$peg.pm10.raw[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (raw) Particulate Matter 10 uM", main=NULL, las=1)
+
+hist(include$peg.pm10.cent[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (cent) Particulate Matter 10 uM", main=NULL, las=1)
+
+hist(include$peg.pm10.centscale[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (centscale) Particulate Matter 10 uM", main=NULL, las=1)
+
+hist(include$peg.no2.raw[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (raw) NO2", main=NULL, las=1)
+
+hist(include$peg.no2.cent[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (cent) NO2", main=NULL, las=1)
+
+hist(include$peg.no2.centscale[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (centscale) NO2", main=NULL, las=1)
+
+dev.off()
+```
+
+```{r histograms_pegs_std}
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_PEG_Std_Histograms_", date, ".pdf")))
+
+hist(include$peg.pm25.rawstd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (raw) Particulate Matter 2.5 uM", main=NULL, las=1)
+#lines(density(include$peg.pm25.raw[include$childteen=="T"]), lwd = 3)
+
+hist(include$peg.pm25.centstd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (cent) Particulate Matter 2.5 uM", main=NULL, las=1)
+
+hist(include$peg.pm25.centscalestd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (centscale) Particulate Matter 2.5 uM", main=NULL, las=1)
+
+hist(include$peg.pm10.rawstd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (raw) Particulate Matter 10 uM", main=NULL, las=1)
+
+hist(include$peg.pm10.centstd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (cent) Particulate Matter 10 uM", main=NULL, las=1)
+
+hist(include$peg.pm10.centscalestd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (centscale) Particulate Matter 10 uM", main=NULL, las=1)
+
+hist(include$peg.no2.rawstd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (raw) NO2", main=NULL, las=1)
+
+hist(include$peg.no2.centstd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (cent) NO2", main=NULL, las=1)
+
+hist(include$peg.no2.centscalestd[include$childteen=="T"], breaks = 100, col = "dodgerblue", border = "blue", freq = T, ylab="Number of participants", xlab="PEG (centscale) NO2", main=NULL, las=1)
+
+dev.off()
+```
+
+```{r corrplot_PEGS}
+M <- cor(include[,c("peg.pm25.raw", "peg.pm25.cent", "peg.pm25.centscale", "peg.pm10.raw", "peg.pm10.cent", "peg.pm10.centscale", "peg.no2.raw", "peg.no2.cent", "peg.no2.centscale")])
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_PEG_CorrPlot_", date, ".pdf")))
+corrplot(M, method="ellipse")
+corrplot.mixed(M, upper="ellipse", tl.col="black", tl.pos="lt")
+dev.off()
+```
+
+```{r corrplot_PEGS_std}
+M <- cor(include[,c("peg.pm25.rawstd", "peg.pm25.centstd", "peg.pm25.centscalestd", "peg.pm10.rawstd", "peg.pm10.centstd", "peg.pm10.centscalestd", "peg.no2.rawstd", "peg.no2.centstd", "peg.no2.centscalestd")])
+colnames(M)
+dim(M)
+colnames(M) <- c("PM2.5 Methylation Score (Raw)", "PM2.5 Methylation Score (Centered)", "PM2.5 Methylation Score (Z-score)", "PM10 Methylation Score (Raw)", "PM10 Methylation Score (Centered)", "PM10 Methylation Score (Z-score)","NO2 Methylation Score (Raw)", "NO2 Methylation Score (Centered)", "NO2 Methylation Score (Z-score)" )
+rownames(M) <- c("PM2.5 Methylation Score (Raw)", "PM2.5 Methylation Score (Centered)", "PM2.5 Methylation Score (Z-score)", "PM10 Methylation Score (Raw)", "PM10 Methylation Score (Centered)", "PM10 Methylation Score (Z-score)","NO2 Methylation Score (Raw)", "NO2 Methylation Score (Centered)", "NO2 Methylation Score (Z-score)" )
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_PEG_Std_CorrPlot_", date, ".pdf")))
+corrplot(M, method="ellipse")
+corrplot.mixed(M, upper="ellipse", tl.col="black", tl.pos="lt")
+dev.off()
+```
+
+```{r corrplot_exposure}
+M <- cor(include[,c("birth.pm25", "age1.pm25", "age3.pm25", "birth.pm10", "age1.pm10", "age3.pm10")], use="pairwise.complete.obs")
+colnames(M) <- c("PM2.5 Exposure Birth", "PM2.5 Exposure Age 1", "PM2.5 Exposure Age 3", "PM10 Exposure Birth", "PM10 Exposure Age 1", "PM10 Exposure Age 3")
+rownames(M) <- c("PM2.5 Exposure Birth", "PM2.5 Exposure Age 1", "PM2.5 Exposure Age 3", "PM10 Exposure Birth", "PM10 Exposure Age 1", "PM10 Exposure Age 3")
+
+pdf(file=here("Output",paste0("FFCW_AirPoll_Exposure_CorrPlot_", date, ".pdf")))
+corrplot(M, method="ellipse")
+corrplot.mixed(M, upper="ellipse", tl.col="black", tl.pos="lt")
+dev.off()
+```
+
+```{r analytic_samples_flowchart}
+# graph: this sets the overall layout, themes of the plot
+# node: the boxes in the flowchart
+# edges: the lines used to connect each of the boxes
+
+## Need 4 columns (1, 2, 3, 4) with 3 rows (A-C)
+# Labels for column 1
+a1 <- paste0("Analytic sample
+n indiv=", length(unique(include$idnum)),
+", n obs=", length(include$include))
+
+b1 <- paste0("Particulate matter 2.5uM
+n indiv=", length(unique(include$idnum[!is.na(include$birth.pm25)])),
+", n obs=", length(include$birth.pm25[!is.na(include$birth.pm25)]))
+
+c1 <- paste0("Age 9
+n indiv=", length(unique(include$idnum[!is.na(include$birth.pm25) & include$childteen=="C"])),
+", n obs=", length(include$birth.pm25[!is.na(include$birth.pm25) & include$childteen=="C"]))
+
+# Labels for column 2
+c2 <- paste0("Age 15
+n indiv=", length(unique(include$idnum[!is.na(include$birth.pm25) & include$childteen=="T"])),
+", n obs=", length(include$birth.pm25[!is.na(include$birth.pm25) & include$childteen=="T"]))
+
+# Labels for column 3
+b3 <- paste0("Particulate matter 10uM
+n indiv=", length(unique(include$idnum[!is.na(include$birth.pm10)])),
+", n obs=", length(include$birth.pm10[!is.na(include$birth.pm10)]))
+
+c3 <- paste0("Age 9
+n indiv=", length(unique(include$idnum[!is.na(include$birth.pm10) & include$childteen=="C"])),
+", n obs=", length(include$birth.pm10[!is.na(include$birth.pm10) & include$childteen=="C"]))
+
+
+# Labels for column 4
+c4 <- paste0("Age 15
+n indiv=", length(unique(include$idnum[!is.na(include$birth.pm10) & include$childteen=="T"])),
+", n obs=", length(include$birth.pm10[!is.na(include$birth.pm10) & include$childteen=="T"]))
+
+
+# Create a node dataframe
+ndf <- create_node_df(
+  n = 7,
+  label = c(
+    a1, b1, c1,  # Column 1
+     c2, 
+    b3, c3,
+    c4 
+  ),
+  style = c(
+    rep("solid", 7)
+  ), 
+  shape = "box",
+  fontname = "Arial",
+  penwidth = 3,
+  fixedsize = F,
+  color = c(rep("black", 7))
+)
+
+
+# Create an edge dataframe
+edf <- create_edge_df(
+  from = c(
+    1, 2, 2, # Column 1
+    1, 5, 5 # Column 2
+  ),
+  to = c(
+    2, 3, 4, # Column 1
+    5, 6, 7 # Column 2
+  ),
+  arrowhead = "normal",
+  style = c(rep("solid", 6)),
+  color = c(
+    rep("black", 6) # Column 1
+  ) # Column 2
+)
+
+g <- create_graph(ndf,
+  edf,
+  attr_theme = NULL, directed = T
+)
+render_graph(g)
+
+export_graph(g, file_name = here("Output",paste0("FFCW_AirPoll_Flowchart_Analytic_Sample_", date, ".pdf")), file_type = "PDF")
+```
+
+
+```{r save_include}
+# save(ffcw, file=here("Data", "FFCW_AirPoll_DNAm.rda"))
+# save(include, file=here("Data", "FFCW_AirPoll_DNAm_Included.rda"))
+save(ffcw, file=here("Data", paste0("FFCW_AirPoll_DNAm_", date, ".rda")))
+save(include, file=here("Data", paste0("FFCW_AirPoll_DNAm_Included_", date, ".rda")))
+```
+

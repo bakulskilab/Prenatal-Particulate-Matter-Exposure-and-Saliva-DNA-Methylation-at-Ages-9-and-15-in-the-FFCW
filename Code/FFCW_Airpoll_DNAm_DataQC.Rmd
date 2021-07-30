@@ -1,0 +1,255 @@
+---
+title: "Fragile Families DNAm Air Pollution"
+subtitle: "Data Pre-Processing"
+author: "Kelly Bakulski"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: sandstone
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+  
+### Goal: QC the FFCW DNAm + covariates dataset & the FFCW pollution dataset. Merge the two datasets & produce variables for descriptives tables
+
+```{r, eval=F, include=FALSE}
+install.packages("tidyverse")
+install.packages("data.table")
+install.packages("here")
+```
+
+ 
+```{r setup, include = F}
+
+knitr::opts_chunk$set(
+  echo = T,
+  tidy = F,
+  eval = T
+)
+
+
+library(tidyverse)
+library(abind)
+library(Hmisc)
+library(here)
+```
+  
+
+# Load in the data
+```{r load}
+here()
+old<-read.csv(here("Data", "isee_ffcwn1764_pollutionscores.csv"), na.strings=-9, stringsAsFactors = T)
+dim(old)
+scores<-read.csv(here("Data", "isee_pollutionpegs_newvars_5.6.2021.csv"), na.strings=-9, stringsAsFactors = T)
+dim(scores)
+head(scores)
+names(scores)
+
+pollution<-get(load(here("Data", "Methy_Pollution2.rdata")))
+dim(pollution)
+```
+
+```{r pull_useful_old_variables}
+summary(old$idnum)
+summary(old$MethID)
+summary(old$race)
+head(old)
+dim(old[,c("idnum", "MethID", "Epithelial.cells", "Leukocytes")])
+
+scores<-merge(scores, old[,c("MethID", "Epithelial.cells", "Leukocytes")], by=c("MethID"), all=T)
+dim(scores)
+
+```
+
+
+
+```{r rename_pegs}
+#Too confusing to have the pegs labeled as pollution. Will need to bring the pollution variables in as well. Solution: Rename the pegs variables
+head(scores)
+colnames(scores)
+summary(scores$pollution_pm2.5_raw)
+names(scores)[names(scores)=="pollution_pm2.5_raw"] <- "peg.pm25.raw"
+names(scores)[names(scores)=="pollution_pm10_raw"] <- "peg.pm10.raw"
+names(scores)[names(scores)=="pollution_no2_raw"] <- "peg.no2.raw"
+
+names(scores)[names(scores)=="pollution_pm2.5_cent"] <- "peg.pm25.cent"
+names(scores)[names(scores)=="pollution_pm10_cent"] <- "peg.pm10.cent"
+names(scores)[names(scores)=="pollution_no2_cent"] <- "peg.no2.cent"
+
+names(scores)[names(scores)=="pollution_pm2.5_centscale"] <- "peg.pm25.centscale"
+names(scores)[names(scores)=="pollution_pm10_centscale"] <- "peg.pm10.centscale"
+names(scores)[names(scores)=="pollution_no2_centscale"] <- "peg.no2.centscale"
+
+#Calculate age at DNAm measure
+summary(scores$childteen)
+summary(scores$age)
+summary(scores)
+table(scores$cut)
+table(scores$cm1edu)
+table(scores$m1b2)
+table(scores$ck6ethrace)
+table(scores$m1city)
+length(unique(scores$idnum))
+scores$age.dnam <- scores$age/12
+summary(scores$age.dnam) 
+```
+
+
+```{r standardize_scores}
+#z-score standardization allows for interpretation of effect estimates as a standard deviation increase
+scores$peg.pm25.rawstd<-scale(scores$peg.pm25.raw, center=T, scale=T)
+summary(scores$peg.pm25.rawstd)
+sd(scores$peg.pm25.rawstd)
+scores$peg.pm10.rawstd<-scale(scores$peg.pm10.raw, center=T, scale=T)
+scores$peg.no2.rawstd<-scale(scores$peg.no2.raw, center=T, scale=T)
+
+scores$peg.pm25.centstd<-scale(scores$peg.pm25.cent, center=T, scale=T)
+scores$peg.pm10.centstd<-scale(scores$peg.pm10.cent, center=T, scale=T)
+scores$peg.no2.centstd<-scale(scores$peg.no2.cent, center=T, scale=T)
+
+scores$peg.pm25.centscalestd<-scale(scores$peg.pm25.centscale, center=T, scale=T)
+scores$peg.pm10.centscalestd<-scale(scores$peg.pm10.centscale, center=T, scale=T)
+scores$peg.no2.centscalestd<-scale(scores$peg.no2.centscale, center=T, scale=T)
+```
+
+```{r make_pollution_missing_variables}
+summary(pollution$birth.pm10)
+summary(pollution$birth.pm25)
+
+names(pollution)[names(pollution)=="birth_pm10"] <- "birth.pm10"
+names(pollution)[names(pollution)=="birth_pm25"] <- "birth.pm25"
+
+names(pollution)[names(pollution)=="age1_pm10"] <- "age1.pm10"
+names(pollution)[names(pollution)=="age1_pm25"] <- "age1.pm25"
+
+names(pollution)[names(pollution)=="age3_pm10"] <- "age3.pm10"
+names(pollution)[names(pollution)=="age3_pm25"] <- "age3.pm25"
+
+length(!is.na(pollution))
+pollution$birth.pm10.na <- as.factor(ifelse(is.na(pollution$birth.pm10), "Missing", NA))
+pollution$birth.pm25.na <- as.factor(ifelse(is.na(pollution$birth.pm25), "Missing", NA))
+table(pollution$birth.pm10.na, pollution$birth.pm25.na)
+
+pollution$age1.pm10.na <- as.factor(ifelse(is.na(pollution$age1.pm10), "Missing", NA))
+pollution$age1.pm25.na <- as.factor(ifelse(is.na(pollution$age1.pm25), "Missing", NA))
+table(pollution$age1.pm10.na, pollution$age1.pm25.na)
+
+pollution$age3.pm10.na <- as.factor(ifelse(is.na(pollution$age3.pm10), "Missing", NA))
+pollution$age3.pm25.na <- as.factor(ifelse(is.na(pollution$age3.pm25), "Missing", NA))
+table(pollution$age3.pm10.na, pollution$age3.pm25.na)
+```
+
+
+```{r merge_scores_pollution}
+head(scores)
+dim(pollution)
+length(unique(pollution$idnum))
+
+length(unique(scores$idnum))
+length(intersect(pollution$idnum, scores$idnum)) 
+setdiff(pollution$idnum, scores$idnum) 
+
+ffcw <- merge(scores, pollution[, -which(names(pollution) %in% c("m1city", "cm1inpov", "ck6ethrace", "cm1ethrace"))],  by="idnum", all=T)
+
+dim(ffcw) #1811
+
+dim(ffcw)
+summary(ffcw$peg.no2.raw)
+```
+
+```{r make_factor_variables}
+
+table(ffcw$ethrace) 
+ffcw$childethrace.factor<-factor(ffcw$ethrace, levels=1:5, labels=c("Non-Hispanic White", "Non-Hispanic Black", "Hispanic", "Other", "Multi-Racial"))
+table(ffcw$ethrace.factor)
+class(ffcw$ethrace.factor)
+ffcw$matrace.factor<-factor(ffcw$race, levels=1:4, labels=c("Non-Hispanic White", "Non-Hispanic Black", "Hispanic", "Other"))
+
+table(as.factor(ffcw$m1b2))
+ffcw$m1b2.na <- ifelse(ffcw$m1b2==-6, NA, ffcw$m1b2)
+table(ffcw$m1b2.na, useNA = "always")
+table(is.na(ffcw$m1b2.na))
+ffcw$m1b2.factor <-factor(ffcw$m1b2.na, labels=c("Married", "Not Married"))
+table(ffcw$m1b2.factor, useNA = "always")
+
+table(ffcw$sex)
+#ffcw$childsex.factor <-factor(ffcw$sex)
+class(ffcw$sex)
+
+class(ffcw$m1city)
+table(as.factor(ffcw$m1city))
+ffcw$m1city.factor <-factor(ffcw$m1city, labels=c("Oakland", "Austin", "Baltimore", "Detroit","Newark", "Philadelphia", "Richmond", "Corpus Christi", "Indianapolis", "Milwaukee", "New York", "San Jose", "Boston", "Nashville", "Chicago", "Jacksonville", "Toledo", "San Antonio", "Pittsburgh", "Norfolk"))
+table(ffcw$m1city.factor)
+
+table(ffcw$childteen, useNA = "always")
+class(ffcw$childteen)
+
+summary(ffcw$epithelial)
+ffcw$epithelial.percent <-ffcw$epithelial*100
+summary(ffcw$epithelial.percent)
+
+summary(ffcw$immune)
+ffcw$immune.percent <-ffcw$immune*100
+summary(ffcw$immune.percent)
+
+summary(ffcw$cg00905156)
+ffcw$cg00905156.percent <-ffcw$cg00905156*100
+summary(ffcw$cg00905156.percent)
+
+summary(ffcw$cg06849931)
+ffcw$cg06849931.percent <-ffcw$cg06849931*100
+summary(ffcw$cg06849931.percent)
+
+summary(ffcw$cg15082635)
+ffcw$cg15082635.percent <-ffcw$cg15082635*100
+summary(ffcw$cg15082635.percent)
+
+summary(ffcw$cg18640183)
+ffcw$cg18640183.percent <-ffcw$cg18640183*100
+summary(ffcw$cg18640183.percent)
+
+summary(ffcw$cg20340716)
+ffcw$cg20340716.percent <-ffcw$cg20340716*100
+summary(ffcw$cg20340716.percent)
+
+summary(ffcw$cg24127244)
+ffcw$cg24127244.percent <-ffcw$cg24127244*100
+summary(ffcw$cg24127244.percent)
+```
+
+
+```{r make_missing_variables}
+
+table(ffcw$childsex.factor)
+ffcw$sex.na <- as.factor(ifelse(is.na(ffcw$sex), "Missing", NA))
+ffcw$childteen.na <- as.factor(ifelse(is.na(ffcw$childteen), "Missing", NA))
+summary(ffcw$age)
+ffcw$age.na <- as.factor(ifelse(is.na(ffcw$age), "Missing", NA))
+ffcw$m1city.na <- as.factor(ifelse(is.na(ffcw$m1city), "Missing", NA))
+table(is.na(ffcw$m1b2.factor))
+table(ffcw$m1b2.factor)
+ffcw$m1b2.na <- as.factor(ifelse(is.na(ffcw$m1b2.na), "Missing", NA))
+table(ffcw$m1b2.na)
+ffcw$ethrace.factor.na <- as.factor(ifelse(is.na(ffcw$childethrace.factor), "Missing", NA))
+ffcw$race.factor.na <- as.factor(ifelse(is.na(ffcw$matrace.factor), "Missing", NA))
+ffcw$cm1inpov.na <- as.factor(ifelse(is.na(ffcw$cm1inpov), "Missing", NA))
+ffcw$peg.pm25.raw.na <- as.factor(ifelse(is.na(ffcw$peg.pm25.raw), "Missing", NA))
+ffcw$peg.pm10.raw.na <- as.factor(ifelse(is.na(ffcw$peg.pm10.raw), "Missing", NA))
+ffcw$peg.no2.raw.na <- as.factor(ifelse(is.na(ffcw$peg.no2.raw), "Missing", NA))
+summary(ffcw$epithelial)
+summary(ffcw$immune)
+ffcw$immune.na <- as.factor(ifelse(is.na(ffcw$immune), "Missing", NA))
+ffcw$epithelial.na <- as.factor(ifelse(is.na(ffcw$epithelial), "Missing", NA))
+
+table(ffcw$childteen, useNA = "always")
+```
+
+
+```{r save_dataset_analyses}
+
+date <- format(Sys.Date(), "%Y%m%d") 
+  
+save(ffcw, file=here("Data", paste0("FFCW_AirPoll_DNAm_", date, ".rda")))
+
+```
